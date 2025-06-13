@@ -255,7 +255,6 @@ const AccessibleCaptchaComponent: React.FC<CaptchaComponentProps> = ({
     
     return patterns[Math.floor(Math.random() * patterns.length)];
   };
-
   // Generar desafío de historia
   const generateStoryChallenge = (): StoryChallenge => {
     const stories = [
@@ -279,7 +278,20 @@ const AccessibleCaptchaComponent: React.FC<CaptchaComponentProps> = ({
       }
     ];
     
-    return stories[Math.floor(Math.random() * stories.length)];
+    const selectedStory = stories[Math.floor(Math.random() * stories.length)];
+    
+    // Verificar que el objeto tiene todas las propiedades requeridas
+    if (!selectedStory.story || !selectedStory.question || !selectedStory.options || selectedStory.correctIndex === undefined) {
+      // Fallback en caso de error
+      return {
+        story: "Un error ocurrió al cargar la historia.",
+        question: "¿Puede intentar refrescar la página?",
+        options: ["Sí", "No", "Tal vez", "Más tarde"],
+        correctIndex: 0
+      };
+    }
+    
+    return selectedStory;
   };
   // Generar nuevo desafío según el método seleccionado
   const generateNewChallenge = useCallback(() => {
@@ -346,11 +358,10 @@ const AccessibleCaptchaComponent: React.FC<CaptchaComponentProps> = ({
           await speakText(storyChallenge.story);
           await new Promise(resolve => setTimeout(resolve, 1000));
           await speakText(storyChallenge.question);
-          await new Promise(resolve => setTimeout(resolve, 500));
-          
-          const optionsText = storyChallenge.options.map((option, index) => 
+          await new Promise(resolve => setTimeout(resolve, 500));          
+          const optionsText = storyChallenge.options?.map((option, index) => 
             `Opción ${index + 1}: ${option}`
-          ).join('. ');
+          ).join('. ') || 'No hay opciones disponibles';
           await speakText(`Las opciones son: ${optionsText}`);
           break;
       }    } catch (error) {
@@ -664,17 +675,16 @@ const AccessibleCaptchaComponent: React.FC<CaptchaComponentProps> = ({
           )}
           {captchaMethod === 'pattern' && (
             <p>{(currentChallenge as PatternChallenge).description}</p>
-          )}
-          {captchaMethod === 'story' && (
+          )}          {captchaMethod === 'story' && (
             <div>
               <p className="mb-3 italic">{(currentChallenge as StoryChallenge).story}</p>
               <p className="font-medium">{(currentChallenge as StoryChallenge).question}</p>
               <div className="mt-2 grid gap-1">
-                {(currentChallenge as StoryChallenge).options.map((option, index) => (
+                {(currentChallenge as StoryChallenge).options?.map((option, index) => (
                   <p key={index} className="text-sm">
                     <span className="font-bold">{index + 1}.</span> {option}
                   </p>
-                ))}
+                )) || <p className="text-sm text-red-500">Error: No se pudieron cargar las opciones</p>}
               </div>
             </div>
           )}
