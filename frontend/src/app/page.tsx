@@ -1,12 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import CaptchaComponent from "@/components/CaptchaComponent";
+import AccessibleCaptchaComponent from "@/components/AccessibleCaptchaComponent";
 import { AccessibilityPanel } from "@/components/AccessibilityPanel";
 import { SoundFeedback } from "@/components/SoundFeedback";
-import { VoiceSettings } from "@/components/VoiceSettings";
 import { HoverTestComponent } from "@/components/HoverTestComponent";
-import { GoogleVoiceController } from "@/components/GoogleVoiceController";
 import { useAccessibility } from "@/hooks/useAccessibility";
 
 export default function Home() {
@@ -21,18 +19,17 @@ export default function Home() {
   const [fontSize, setFontSize] = useState("base");
   const [isCaptchaVerified, setIsCaptchaVerified] = useState(false);
   const [isAccessibilityPanelOpen, setIsAccessibilityPanelOpen] = useState(false);
-  const [isVoiceSettingsOpen, setIsVoiceSettingsOpen] = useState(false);
-  const [isGoogleVoiceControllerOpen, setIsGoogleVoiceControllerOpen] = useState(false);
+  const [isFloatingPanelOpen, setIsFloatingPanelOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const formRef = useRef<HTMLFormElement>(null);
   const firstErrorRef = useRef<HTMLInputElement>(null);
 
   // Hook de accesibilidad avanzada
   const { 
-    settings: accessibilitySettings, 
     announceInstructions,
     readEntirePage,
-    stopSpeaking
+    stopSpeaking,
+    initializeVoice
   } = useAccessibility();
 
   // Funciones de accesibilidad usando useCallback
@@ -55,7 +52,7 @@ export default function Home() {
             break;
           case 'h':
             event.preventDefault();
-            setIsAccessibilityPanelOpen(true);
+            setIsFloatingPanelOpen(prev => !prev);
             break;
           case 'c':
             event.preventDefault();
@@ -69,15 +66,27 @@ export default function Home() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [announceInstructions, toggleHighContrast]);
 
-  // Anunciar instrucciones al cargar la página
+  // Efecto para cerrar el panel flotante con Escape
   useEffect(() => {
-    if (accessibilitySettings.autoFocus) {
-      const timer = setTimeout(() => {
-        announceInstructions();
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [accessibilitySettings.autoFocus, announceInstructions]);
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && isFloatingPanelOpen) {
+        setIsFloatingPanelOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isFloatingPanelOpen]);
+
+  // Anunciar instrucciones al cargar la página (deshabilitado para evitar error not-allowed)
+  // useEffect(() => {
+  //   if (accessibilitySettings.autoFocus) {
+  //     const timer = setTimeout(() => {
+  //       announceInstructions();
+  //     }, 2000);
+  //     return () => clearTimeout(timer);
+  //   }
+  // }, [accessibilitySettings.autoFocus, announceInstructions]);
 
   // Validación del formulario
   const validateForm = () => {
@@ -267,150 +276,193 @@ export default function Home() {
         Saltar al contenido principal
       </a>
 
-      {/* Panel de Accesibilidad */}
-      <div className={`fixed top-4 right-4 z-40 p-4 rounded-lg shadow-lg border ${isHighContrast ? 'bg-gray-900 border-white text-white' : 'bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-700'}`}>
-        <h3 className="text-sm font-semibold mb-3 flex items-center">
-          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
-          </svg>
-          Opciones de Accesibilidad
-        </h3>
+      {/* Botón Flotante de Accesibilidad */}
+      <div className="fixed bottom-6 right-6 z-50">
+        {/* Overlay para cerrar al hacer clic fuera */}
+        {isFloatingPanelOpen && (
+          <div 
+            className="fixed inset-0 z-40" 
+            onClick={() => setIsFloatingPanelOpen(false)}
+            aria-hidden="true"
+          />
+        )}
         
-        {/* Contraste Alto */}
-        <div className="mb-3">
+        {!isFloatingPanelOpen ? (
+          /* Botón flotante colapsado */
           <button
-            onClick={toggleHighContrast}
-            className={`w-full text-left px-3 py-2 rounded text-sm font-medium transition-colors
+            onClick={() => setIsFloatingPanelOpen(true)}
+            className={`w-14 h-14 rounded-full shadow-lg transition-all duration-300 hover:scale-110 focus:scale-110 focus:outline-none focus:ring-4
               ${isHighContrast 
-                ? 'bg-white text-black hover:bg-gray-100' 
-                : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600'
+                ? 'bg-white text-black border-2 border-black focus:ring-white' 
+                : 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-200 dark:bg-blue-500 dark:hover:bg-blue-600'
               }`}
-            aria-pressed={isHighContrast}
+            aria-label="Abrir panel de opciones de accesibilidad"
+            title="Opciones de Accesibilidad (Alt+H)"
           >
-            {isHighContrast ? '◉' : '○'} Alto Contraste
+            <svg className="w-6 h-6 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
+            </svg>
           </button>
-        </div>
-
-        {/* Tamaño de Fuente */}
-        <div className="mb-3">
-          <p className="text-xs mb-2 font-medium">Tamaño de texto:</p>
-          <div className="flex gap-1">
-            {['small', 'base', 'large'].map((size) => (
+        ) : (
+          /* Panel expandido */
+          <div className={`relative z-50 w-80 max-h-96 overflow-y-auto rounded-lg shadow-xl border transition-all duration-300 animate-in slide-in-from-bottom-4
+            ${isHighContrast 
+              ? 'bg-gray-900 border-white text-white' 
+              : 'bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-700'
+            }`}
+          >
+            {/* Header del panel */}
+            <div className={`flex items-center justify-between p-4 border-b ${isHighContrast ? 'border-white' : 'border-gray-200 dark:border-gray-700'}`}>
+              <h3 className="text-lg font-semibold flex items-center">
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
+                </svg>
+                Accesibilidad
+              </h3>
               <button
-                key={size}
-                onClick={() => changeFontSize(size)}
-                className={`px-2 py-1 text-xs rounded transition-colors
-                  ${fontSize === size 
-                    ? (isHighContrast ? 'bg-white text-black' : 'bg-blue-600 text-white')
-                    : (isHighContrast ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500')
-                  }`}
-                aria-pressed={fontSize === size}
+                onClick={() => setIsFloatingPanelOpen(false)}
+                className={`p-1 rounded-full transition-colors hover:bg-gray-100 dark:hover:bg-gray-700
+                  ${isHighContrast ? 'hover:bg-gray-700' : ''}`}
+                aria-label="Cerrar panel"
               >
-                {size === 'small' ? 'A' : size === 'base' ? 'A' : 'A'}
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
-            ))}
+            </div>
+
+            {/* Contenido del panel */}
+            <div className="p-4 space-y-4">
+              {/* Activar Voz - Destacado */}
+              <div className={`p-3 rounded-lg border-l-4 border-blue-500 ${isHighContrast ? 'bg-gray-800' : 'bg-blue-50 dark:bg-blue-900/20'}`}>
+                <button
+                  onClick={initializeVoice}
+                  className={`w-full text-left px-3 py-2 rounded font-medium transition-colors
+                    ${isHighContrast 
+                      ? 'bg-white text-black hover:bg-gray-100' 
+                      : 'bg-blue-500 text-white hover:bg-blue-600'
+                    }`}
+                >
+                  🎤 Activar Voz (Requerido)
+                </button>
+                <p className={`text-xs mt-1 ${isHighContrast ? 'text-gray-300' : 'text-blue-700 dark:text-blue-300'}`}>
+                  Haz clic primero para habilitar la síntesis de voz
+                </p>
+              </div>
+
+              {/* Contraste Alto */}
+              <div>
+                <button
+                  onClick={toggleHighContrast}
+                  className={`w-full text-left px-3 py-2 rounded text-sm font-medium transition-colors flex items-center justify-between
+                    ${isHighContrast 
+                      ? 'bg-white text-black hover:bg-gray-100' 
+                      : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600'
+                    }`}
+                  aria-pressed={isHighContrast}
+                >
+                  <span className="flex items-center">
+                    <span className="mr-2">{isHighContrast ? '◉' : '○'}</span>
+                    Alto Contraste
+                  </span>
+                  <span className="text-xs opacity-75">Alt+C</span>
+                </button>
+              </div>
+
+              {/* Tamaño de Fuente */}
+              <div>
+                <p className="text-xs mb-2 font-medium opacity-75">Tamaño de texto:</p>
+                <div className="flex gap-1">
+                  {['small', 'base', 'large'].map((size) => (
+                    <button
+                      key={size}
+                      onClick={() => changeFontSize(size)}
+                      className={`flex-1 px-2 py-1 text-xs rounded transition-colors
+                        ${fontSize === size
+                          ? (isHighContrast ? 'bg-white text-black' : 'bg-blue-500 text-white')
+                          : (isHighContrast ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500')
+                        }`}
+                      aria-pressed={fontSize === size}
+                    >
+                      {size === 'small' ? 'A' : size === 'large' ? 'A' : 'A'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Efectos de Sonido */}
+              <div>
+                <button
+                  onClick={() => setSoundEnabled(!soundEnabled)}
+                  className={`w-full text-left px-3 py-2 rounded text-sm font-medium transition-colors flex items-center justify-between
+                    ${isHighContrast 
+                      ? (soundEnabled ? 'bg-white text-black' : 'bg-gray-700 text-white hover:bg-gray-600')
+                      : (soundEnabled ? 'bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/20 dark:text-green-400' : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600')
+                    }`}
+                  aria-pressed={soundEnabled}
+                >
+                  <span className="flex items-center">
+                    <span className="mr-2">{soundEnabled ? '🔊' : '🔇'}</span>
+                    Efectos de Sonido
+                  </span>
+                </button>
+              </div>
+
+              {/* Panel Avanzado */}
+              <div>
+                <button
+                  onClick={() => {
+                    // Cerrar el panel flotante y abrir el modal avanzado
+                    setIsFloatingPanelOpen(false);
+                    setTimeout(() => {
+                      // Esta variable controla el modal avanzado de AccessibilityPanel
+                      setIsAccessibilityPanelOpen(true);
+                    }, 100);
+                  }}
+                  className={`w-full text-left px-3 py-2 rounded text-sm font-medium transition-colors flex items-center justify-between
+                    ${isHighContrast 
+                      ? 'bg-yellow-300 text-black hover:bg-yellow-200' 
+                      : 'bg-purple-100 text-purple-800 hover:bg-purple-200 dark:bg-purple-900/20 dark:text-purple-400'
+                    }`}
+                >
+                  <span className="flex items-center">
+                    <span className="mr-2">🎯</span>
+                    Panel Avanzado
+                  </span>
+                  <span className="text-xs opacity-75">Alt+H</span>
+                </button>
+              </div>
+
+              {/* Atajos rápidos */}
+              <div className={`border-t pt-3 mt-3 ${isHighContrast ? 'border-white' : 'border-gray-200 dark:border-gray-700'}`}>
+                <p className="text-xs font-medium mb-2 opacity-75">Atajos rápidos:</p>
+                <div className="space-y-1">
+                  <button
+                    onClick={announceInstructions}
+                    className={`w-full text-left px-2 py-1 rounded text-xs transition-colors hover:bg-gray-100 dark:hover:bg-gray-600
+                      ${isHighContrast ? 'hover:bg-gray-700' : ''}`}
+                  >
+                    📢 Leer Instrucciones (Alt+I)
+                  </button>
+                  <button
+                    onClick={readEntirePage}
+                    className={`w-full text-left px-2 py-1 rounded text-xs transition-colors hover:bg-gray-100 dark:hover:bg-gray-600
+                      ${isHighContrast ? 'hover:bg-gray-700' : ''}`}
+                  >
+                    📖 Leer Página (Alt+R)
+                  </button>
+                  <button
+                    onClick={stopSpeaking}
+                    className={`w-full text-left px-2 py-1 rounded text-xs transition-colors hover:bg-gray-100 dark:hover:bg-gray-600
+                      ${isHighContrast ? 'hover:bg-gray-700' : ''}`}
+                  >
+                    ⏹️ Detener (Esc)
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-
-        {/* Botón Panel Avanzado */}
-        <div className="mb-3">
-          <button
-            onClick={() => setIsAccessibilityPanelOpen(true)}
-            className={`w-full text-left px-3 py-2 rounded text-sm font-medium transition-colors
-              ${isHighContrast 
-                ? 'bg-yellow-300 text-black hover:bg-yellow-200' 
-                : 'bg-blue-500 text-white hover:bg-blue-600'
-              }`}
-            aria-describedby="advanced-panel-help"
-          >
-            🎯 Panel Avanzado
-          </button>
-          <p id="advanced-panel-help" className="text-xs mt-1 opacity-75">
-            Navegación por teclado, lectura automática y más funciones
-          </p>
-        </div>
-
-        {/* Controles de Audio */}
-        <div className="mb-3">
-          <button
-            onClick={() => setSoundEnabled(!soundEnabled)}
-            className={`w-full text-left px-3 py-2 rounded text-sm font-medium transition-colors mb-2
-              ${isHighContrast 
-                ? 'bg-green-300 text-black hover:bg-green-200' 
-                : 'bg-green-500 text-white hover:bg-green-600'
-              }`}
-            aria-pressed={soundEnabled}
-          >
-            {soundEnabled ? '🔊' : '🔇'} Efectos de Sonido
-          </button>
-          
-          <button
-            onClick={() => setIsVoiceSettingsOpen(true)}
-            className={`w-full text-left px-3 py-2 rounded text-sm font-medium transition-colors
-              ${isHighContrast 
-                ? 'bg-purple-300 text-black hover:bg-purple-200' 
-                : 'bg-purple-500 text-white hover:bg-purple-600'
-              }`}
-            aria-describedby="voice-config-help"
-          >
-            🎤 Configurar Voz
-          </button>
-          <p id="voice-config-help" className="text-xs mt-1 opacity-75">
-            Selecciona voz, velocidad y calidad de audio
-          </p>
-          
-          <button
-            onClick={() => setIsGoogleVoiceControllerOpen(true)}
-            className={`w-full text-left px-3 py-2 rounded text-sm font-medium transition-colors
-              ${isHighContrast 
-                ? 'bg-green-300 text-black hover:bg-green-200' 
-                : 'bg-green-500 text-white hover:bg-green-600'
-              }`}
-            aria-describedby="google-voice-help"
-          >
-            🌟 Google Español US
-          </button>
-          <p id="google-voice-help" className="text-xs mt-1 opacity-75">
-            Configurar voz Google como predeterminada
-          </p>
-        </div>
-
-        {/* Atajos rápidos */}
-        <div className="border-t pt-2 mt-2">
-          <p className="text-xs font-medium mb-2">Atajos rápidos:</p>
-          <div className="space-y-1">
-            <button
-              onClick={announceInstructions}
-              className={`w-full text-left px-2 py-1 rounded text-xs transition-colors
-                ${isHighContrast 
-                  ? 'hover:bg-gray-700' 
-                  : 'hover:bg-gray-100 dark:hover:bg-gray-600'
-                }`}
-            >
-              📢 Instrucciones (Alt+I)
-            </button>
-            <button
-              onClick={readEntirePage}
-              className={`w-full text-left px-2 py-1 rounded text-xs transition-colors
-                ${isHighContrast 
-                  ? 'hover:bg-gray-700' 
-                  : 'hover:bg-gray-100 dark:hover:bg-gray-600'
-                }`}
-            >
-              📖 Leer Página (Alt+R)
-            </button>
-            <button
-              onClick={stopSpeaking}
-              className={`w-full text-left px-2 py-1 rounded text-xs transition-colors
-                ${isHighContrast 
-                  ? 'hover:bg-gray-700' 
-                  : 'hover:bg-gray-100 dark:hover:bg-gray-600'
-                }`}
-            >
-              ⏹️ Detener (Esc)
-            </button>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Header */}
@@ -552,7 +604,7 @@ export default function Home() {
                   Verificación de Seguridad
                   <span className="text-red-500 ml-1" aria-label="campo requerido">*</span>
                 </label>
-                <CaptchaComponent 
+                <AccessibleCaptchaComponent 
                   onVerificationChange={setIsCaptchaVerified}
                   isHighContrast={isHighContrast}
                   fontSize={fontSize}
@@ -652,7 +704,7 @@ export default function Home() {
             
             <div className={`mt-4 p-3 rounded border-l-4 ${isHighContrast ? 'border-white bg-gray-700' : 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'}`}>
               <p className={`text-sm font-medium ${getFontSizeClasses()} ${isHighContrast ? 'text-white' : 'text-blue-900 dark:text-blue-100'}`}>
-                💡 <strong>Tip:</strong> Use el panel de accesibilidad en la esquina superior derecha para personalizar su experiencia visual.
+                💡 <strong>Tip:</strong> Use el botón flotante de accesibilidad en la esquina inferior derecha para personalizar su experiencia visual.
               </p>
             </div>
           </div>
@@ -663,18 +715,6 @@ export default function Home() {
       <AccessibilityPanel 
         isOpen={isAccessibilityPanelOpen}
         onClose={() => setIsAccessibilityPanelOpen(false)}
-      />
-
-      {/* Panel de Configuración de Voz */}
-      <VoiceSettings 
-        isOpen={isVoiceSettingsOpen}
-        onClose={() => setIsVoiceSettingsOpen(false)}
-      />
-
-      {/* Controlador de Voz Google */}
-      <GoogleVoiceController 
-        isOpen={isGoogleVoiceControllerOpen}
-        onClose={() => setIsGoogleVoiceControllerOpen(false)}
       />
 
       {/* Componente de Feedback de Sonido */}

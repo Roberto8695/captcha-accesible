@@ -114,18 +114,47 @@ const CaptchaComponent: React.FC<CaptchaComponentProps> = ({
     
     return challenges[Math.floor(Math.random() * challenges.length)];
   };
-
-  // Función para sintetizar voz
+  // Función para sintetizar voz con voz optimizada de Google
   const speakText = (text: string) => {
     if ('speechSynthesis' in window) {
       setIsPlaying(true);
       window.speechSynthesis.cancel();
       
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'es-ES';
-      utterance.rate = 0.8;
-      utterance.pitch = 1;
-      utterance.volume = 1;
+      
+      // Buscar la mejor voz de Google en español
+      const voices = window.speechSynthesis.getVoices();
+      const googleVoices = voices.filter(voice => 
+        (voice.name.toLowerCase().includes('google') || voice.name.toLowerCase().includes('chrome')) &&
+        (voice.lang.startsWith('es-') || voice.lang === 'es')
+      );
+
+      // Prioridad: es-US > es-ES > otras variantes de español
+      const priorityOrder = ['es-US', 'es-ES', 'es-MX', 'es-AR', 'es'];
+      let bestVoice = null;
+      for (const lang of priorityOrder) {
+        bestVoice = googleVoices.find(voice => voice.lang === lang);
+        if (bestVoice) break;
+      }
+
+      // Si no hay voces de Google, buscar cualquier voz clara en español
+      if (!bestVoice) {
+        bestVoice = voices.find(voice => 
+          voice.lang.startsWith('es-') && voice.localService
+        ) || voices.find(voice => voice.lang.startsWith('es-'));
+      }
+
+      if (bestVoice) {
+        utterance.voice = bestVoice;
+        utterance.lang = bestVoice.lang;
+      } else {
+        utterance.lang = 'es-US'; // Fallback
+      }
+      
+      // Configuración optimizada para claridad y velocidad
+      utterance.rate = 0.9; // Velocidad ligeramente reducida para mejor comprensión
+      utterance.pitch = 1.0; // Tono neutro
+      utterance.volume = 1.0; // Volumen máximo
       
       utterance.onend = () => setIsPlaying(false);
       utterance.onerror = () => setIsPlaying(false);

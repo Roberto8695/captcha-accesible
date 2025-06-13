@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
-import { useSpeech } from './useSpeech';
+import { useSpeechSimple } from './useSpeechSimple';
 
 interface AccessibilitySettings {
   hoverToRead: boolean;
@@ -20,7 +20,7 @@ interface NavigationElement {
 }
 
 export const useAccessibility = () => {
-  const { speak, cancel: stopSpeaking, speaking } = useSpeech();
+  const { speak, cancel: stopSpeaking, speaking, initializeVoice } = useSpeechSimple();
   const [settings, setSettings] = useState<AccessibilitySettings>({
     hoverToRead: true,
     continuousReading: false,
@@ -110,9 +110,9 @@ export const useAccessibility = () => {
       const text = `${type}: ${description}`;
       
       // Usar prioridad alta para hover (cancela lecturas anteriores si es necesario)
-      speak(text, { rate: settings.readingSpeed, priority: 'high' });
+      speak(text);
     }, 500) as unknown as number;
-  }, [settings.hoverToRead, settings.readingSpeed, speak]);
+  }, [settings.hoverToRead, speak]);
 
   // Navegar al siguiente elemento
   const navigateNext = useCallback(() => {
@@ -123,13 +123,12 @@ export const useAccessibility = () => {
     
     const element = navigableElements[nextIndex].element;
     element.focus();
-    
-    if (settings.keyboardNavigation) {
+      if (settings.keyboardNavigation) {
       const description = navigableElements[nextIndex].description;
       const type = navigableElements[nextIndex].type;
-      speak(`${type}: ${description}`, { rate: settings.readingSpeed });
+      speak(`${type}: ${description}`);
     }
-  }, [currentFocusIndex, navigableElements, settings.keyboardNavigation, settings.readingSpeed, speak]);
+  }, [currentFocusIndex, navigableElements, settings.keyboardNavigation, speak]);
 
   // Navegar al elemento anterior
   const navigatePrevious = useCallback(() => {
@@ -142,13 +141,12 @@ export const useAccessibility = () => {
     
     const element = navigableElements[prevIndex].element;
     element.focus();
-    
-    if (settings.keyboardNavigation) {
+      if (settings.keyboardNavigation) {
       const description = navigableElements[prevIndex].description;
       const type = navigableElements[prevIndex].type;
-      speak(`${type}: ${description}`, { rate: settings.readingSpeed });
+      speak(`${type}: ${description}`);
     }
-  }, [currentFocusIndex, navigableElements, settings.keyboardNavigation, settings.readingSpeed, speak]);
+  }, [currentFocusIndex, navigableElements, settings.keyboardNavigation, speak]);
 
   // Activar elemento actual
   const activateCurrentElement = useCallback(() => {
@@ -197,12 +195,10 @@ export const useAccessibility = () => {
     inputs.forEach(input => {
       const label = getElementDescription(input as HTMLElement);
       textToRead += `Campo: ${label}. `;
-    });
-
-    if (textToRead) {
-      speak(textToRead, { rate: settings.readingSpeed });
+    });    if (textToRead) {
+      speak(textToRead);
     }
-  }, [speak, settings.readingSpeed]);
+  }, [speak]);
 
   // Configurar atajos de teclado
   useHotkeys('alt+n', navigateNext, { preventDefault: true });
@@ -277,9 +273,8 @@ export const useAccessibility = () => {
       Alt + S o Escape para detener lectura.
       Pase el cursor sobre los elementos para escuchar su descripción.
     `;
-    speak(instructions, { rate: 0.7 });
+    speak(instructions);
   }, [speak]);
-
   return {
     settings,
     updateSettings,
@@ -289,6 +284,7 @@ export const useAccessibility = () => {
     readEntirePage,
     stopSpeaking,
     announceInstructions,
+    initializeVoice,
     currentFocusIndex,
     navigableElements: navigableElements.length,
     speaking

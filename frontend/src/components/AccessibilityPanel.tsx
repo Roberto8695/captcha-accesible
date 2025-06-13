@@ -1,8 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useAccessibility } from '../hooks/useAccessibility';
-import { VoiceSettings } from './VoiceSettings';
 
 interface AccessibilityPanelProps {
   isOpen: boolean;
@@ -17,10 +16,7 @@ export const AccessibilityPanel: React.FC<AccessibilityPanelProps> = ({ isOpen, 
     readEntirePage,
     stopSpeaking,
     navigableElements,
-    speaking
-  } = useAccessibility();
-
-  const [isVoiceSettingsOpen, setIsVoiceSettingsOpen] = useState(false);
+    speaking  } = useAccessibility();
 
   if (!isOpen) return null;
 
@@ -78,21 +74,19 @@ export const AccessibilityPanel: React.FC<AccessibilityPanelProps> = ({ isOpen, 
                 aria-label="Detener lectura"
                 disabled={!speaking}
               >
-                ⏹️ Detener
-              </button>
-
-              <button
-                onClick={() => setIsVoiceSettingsOpen(true)}
-                className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors"
-                aria-label="Configurar voz y calidad de audio"
-              >
-                🎤 Configurar Voz
-              </button>
+                ⏹️ Detener              </button>
               
               <div className="flex items-center">
                 <span className={`inline-block w-3 h-3 rounded-full mr-2 ${speaking ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`}></span>
                 <span className="text-sm">{speaking ? 'Leyendo...' : 'Silencio'}</span>
               </div>
+            </div>
+            
+            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg border-l-4 border-blue-500">
+              <p className="text-sm text-blue-800 dark:text-blue-300">
+                <strong>🎤 Voz:</strong> Configurada automáticamente con la mejor voz de Google disponible (es-US preferido).
+                Sin configuración necesaria.
+              </p>
             </div>
           </div>
 
@@ -204,15 +198,8 @@ export const AccessibilityPanel: React.FC<AccessibilityPanelProps> = ({ isOpen, 
             className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
           >
             Cerrar
-          </button>
-        </div>
+          </button>        </div>
       </div>
-
-      {/* Panel de Configuración de Voz */}
-      <VoiceSettings 
-        isOpen={isVoiceSettingsOpen}
-        onClose={() => setIsVoiceSettingsOpen(false)}
-      />
     </div>
   );
 };
