@@ -15,11 +15,9 @@ const CaptchaSelectionModal: React.FC<CaptchaSelectionModalProps> = ({
   onSelect
 }) => {
   const router = useRouter();
-  const [selectedType, setSelectedType] = useState<'audio' | 'visual' | null>(null);
 
   // Manejar selección y navegación
   const handleSelection = (type: 'audio' | 'visual') => {
-    setSelectedType(type);
     onSelect(type);
     
     // Navegar a la página correspondiente

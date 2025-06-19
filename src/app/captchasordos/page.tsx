@@ -13,6 +13,13 @@ interface FormData {
 
 type CaptchaType = 'pattern' | 'sequence' | 'matching' | 'sorting';
 
+// Tipos específicos para las respuestas de usuario
+type PatternAnswer = number;
+type SequenceAnswer = number;
+type MatchingAnswer = number[];
+type SortingAnswer = number[];
+type UserAnswer = PatternAnswer | SequenceAnswer | MatchingAnswer | SortingAnswer | null;
+
 interface PatternChallenge {
   type: 'pattern';
   title: string;
@@ -56,12 +63,10 @@ export default function CaptchaSordosPage() {
     message: "",
     phoneNumber: "",
     preferredContact: 'email'
-  });
-
-  const [currentCaptchaType, setCurrentCaptchaType] = useState<CaptchaType>('pattern');
+  });  const [currentCaptchaType, setCurrentCaptchaType] = useState<CaptchaType>('pattern');
   const [currentChallenge, setCurrentChallenge] = useState<Challenge | null>(null);
   const [isCaptchaVerified, setIsCaptchaVerified] = useState(false);
-  const [userAnswer, setUserAnswer] = useState<any>(null);
+  const [userAnswer, setUserAnswer] = useState<UserAnswer>(null);
   const [attempts, setAttempts] = useState(0);
   const [errors, setErrors] = useState<{[key: string]: string}>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -275,13 +280,12 @@ export default function CaptchaSordosPage() {
       case 'sequence':
         isCorrect = userAnswer === currentChallenge.correctOption;
         break;
-        
-      case 'matching':
+          case 'matching':
         const correctIds = currentChallenge.items
           .filter(item => item.category === currentChallenge.targetCategory)
           .map(item => item.id)
           .sort();
-        const selectedIds = (userAnswer || []).sort();
+        const selectedIds = Array.isArray(userAnswer) ? userAnswer.sort() : [];
         isCorrect = JSON.stringify(correctIds) === JSON.stringify(selectedIds);
         break;
         
@@ -289,7 +293,7 @@ export default function CaptchaSordosPage() {
         const correctOrder = currentChallenge.items
           .sort((a, b) => a.order - b.order)
           .map(item => item.id);
-        isCorrect = JSON.stringify(userAnswer) === JSON.stringify(correctOrder);
+        isCorrect = Array.isArray(userAnswer) && JSON.stringify(userAnswer) === JSON.stringify(correctOrder);
         break;
     }
 
@@ -378,11 +382,10 @@ export default function CaptchaSordosPage() {
         message: "",
         phoneNumber: "",
         preferredContact: 'email'
-      });
-      setIsCaptchaVerified(false);
+      });      setIsCaptchaVerified(false);
       generateNewChallenge();
       
-    } catch (error) {
+    } catch {
       setErrors({ submit: 'Error al enviar el formulario. Intente nuevamente.' });
     } finally {
       setIsSubmitting(false);
@@ -492,13 +495,12 @@ export default function CaptchaSordosPage() {
       </div>
     );
   };
-
   // Renderizar desafío de emparejamiento
   const renderMatchingChallenge = () => {
     if (currentChallenge?.type !== 'matching') return null;
 
     const toggleSelection = (id: number) => {
-      const currentSelections = userAnswer || [];
+      const currentSelections = Array.isArray(userAnswer) ? userAnswer : [];
       if (currentSelections.includes(id)) {
         setUserAnswer(currentSelections.filter((selectedId: number) => selectedId !== id));
       } else {
@@ -507,14 +509,13 @@ export default function CaptchaSordosPage() {
     };
 
     return (
-      <div className="space-y-4">
-        <div className="grid grid-cols-4 gap-3 max-w-md mx-auto">
+      <div className="space-y-4">        <div className="grid grid-cols-4 gap-3 max-w-md mx-auto">
           {currentChallenge.items.map((item) => (
             <button
               key={item.id}
               onClick={() => toggleSelection(item.id)}
               className={`w-16 h-16 flex items-center justify-center text-3xl rounded-lg border-2 transition-all ${
-                (userAnswer || []).includes(item.id)
+                Array.isArray(userAnswer) && userAnswer.includes(item.id)
                   ? 'border-green-500 bg-green-100 dark:bg-green-900 scale-110'
                   : 'border-gray-300 bg-white dark:bg-gray-800 hover:border-green-300 hover:scale-105'
               }`}
@@ -525,32 +526,27 @@ export default function CaptchaSordosPage() {
         </div>
         
         <div className="text-center text-sm text-gray-600 dark:text-gray-400">
-          Seleccionados: {(userAnswer || []).length} elementos
+          Seleccionados: {Array.isArray(userAnswer) ? userAnswer.length : 0} elementos
         </div>
       </div>
     );
   };
-
   // Renderizar desafío de ordenamiento
   const renderSortingChallenge = () => {
     if (currentChallenge?.type !== 'sorting') return null;
 
     const moveItem = (fromIndex: number, toIndex: number) => {
-      const newOrder = [...(userAnswer || [])];
+      const currentOrder = Array.isArray(userAnswer) ? userAnswer : [];
+      const newOrder = [...currentOrder];
       const [movedItem] = newOrder.splice(fromIndex, 1);
       newOrder.splice(toIndex, 0, movedItem);
       setUserAnswer(newOrder);
     };
 
-    const getItemByIndex = (index: number) => {
-      const itemId = userAnswer?.[index];
-      return currentChallenge.items.find(item => item.id === itemId);
-    };
-
     return (
       <div className="space-y-4">
         <div className="flex justify-center items-center space-x-2">
-          {(userAnswer || []).map((itemId: number, index: number) => {
+          {Array.isArray(userAnswer) && userAnswer.map((itemId: number, index: number) => {
             const item = currentChallenge.items.find(i => i.id === itemId);
             return (
               <div key={index} className="relative">
@@ -566,7 +562,7 @@ export default function CaptchaSordosPage() {
                       ←
                     </button>
                   )}
-                  {index < (userAnswer?.length || 0) - 1 && (
+                  {Array.isArray(userAnswer) && index < userAnswer.length - 1 && (
                     <button
                       onClick={() => moveItem(index, index + 1)}
                       className="w-6 h-6 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
@@ -643,10 +639,9 @@ export default function CaptchaSordosPage() {
               >
                 {isHighContrast ? '🌞' : '🌙'} Alto Contraste
               </button>
-              
-              <select
+                <select
                 value={fontSize}
-                onChange={(e) => setFontSize(e.target.value as any)}
+                onChange={(e) => setFontSize(e.target.value as 'small' | 'base' | 'large')}
                 className="px-4 py-2 rounded-lg border border-gray-300 bg-white dark:bg-gray-700"
               >
                 <option value="small">📝 Texto Pequeño</option>
