@@ -5,6 +5,7 @@ import AccessibleCaptchaComponent from "@/components/AccessibleCaptchaComponent"
 import { AccessibilityPanel } from "@/components/AccessibilityPanel";
 import { SoundFeedback } from "@/components/SoundFeedback";
 import { HoverTestComponent } from "@/components/HoverTestComponent";
+import CaptchaSelectionModal from "@/components/CaptchaSelectionModal";
 import { useAccessibility } from "@/hooks/useAccessibility";
 
 export default function Home() {
@@ -21,6 +22,12 @@ export default function Home() {
   const [isAccessibilityPanelOpen, setIsAccessibilityPanelOpen] = useState(false);
   const [isFloatingPanelOpen, setIsFloatingPanelOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  
+  // Estados para el modal de selección de captcha
+  const [showCaptchaModal, setShowCaptchaModal] = useState(false);
+  const [hasSelectedCaptcha, setHasSelectedCaptcha] = useState(false);
+  const [selectedCaptchaType, setSelectedCaptchaType] = useState<'audio' | 'visual' | null>(null);
+  
   const formRef = useRef<HTMLFormElement>(null);
   const firstErrorRef = useRef<HTMLInputElement>(null);
 
@@ -40,6 +47,24 @@ export default function Home() {
   const changeFontSize = useCallback((size: string) => {
     setFontSize(size);
   }, []);
+
+  // Funciones para el modal de selección de captcha
+  const handleCaptchaSelection = useCallback((type: 'audio' | 'visual') => {
+    setSelectedCaptchaType(type);
+    setHasSelectedCaptcha(true);
+    
+    // Guardar la preferencia en localStorage para futuras visitas
+    localStorage.setItem('preferredCaptchaType', type);
+  }, []);
+
+  const handleCloseModal = useCallback(() => {
+    setShowCaptchaModal(false);
+    // Si no ha seleccionado, usar audio por defecto
+    if (!hasSelectedCaptcha) {
+      setSelectedCaptchaType('audio');
+      setHasSelectedCaptcha(true);
+    }
+  }, [hasSelectedCaptcha]);
 
   // Configurar atajos de teclado adicionales
   useEffect(() => {
@@ -77,6 +102,24 @@ export default function Home() {
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
   }, [isFloatingPanelOpen]);
+
+  // Mostrar modal de selección al cargar la página
+  useEffect(() => {
+    // Verificar si ya hay una preferencia guardada
+    const savedPreference = localStorage.getItem('preferredCaptchaType') as 'audio' | 'visual' | null;
+    
+    if (savedPreference) {
+      setSelectedCaptchaType(savedPreference);
+      setHasSelectedCaptcha(true);
+    } else {
+      // Si no hay preferencia guardada, mostrar el modal después de un breve delay
+      const timer = setTimeout(() => {
+        setShowCaptchaModal(true);
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   // Anunciar instrucciones al cargar la página (deshabilitado para evitar error not-allowed)
   // useEffect(() => {
@@ -250,9 +293,15 @@ export default function Home() {
       default: return "text-base";
     }
   };
-
   return (
     <div className={getContainerClasses()}>
+      {/* Modal de selección de captcha */}
+      <CaptchaSelectionModal
+        isOpen={showCaptchaModal}
+        onClose={handleCloseModal}
+        onSelect={handleCaptchaSelection}
+      />
+
       {/* Clase para solo lectores de pantalla */}
       <style jsx global>{`
         .sr-only {
@@ -463,14 +512,37 @@ export default function Home() {
             </div>
           </div>
         )}
-      </div>
-
-      {/* Header */}
+      </div>      {/* Header */}
       <header className="w-full py-6 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
-          <h1 className={`text-3xl sm:text-4xl lg:text-5xl font-bold text-center mb-4 ${getFontSizeClasses()} ${isHighContrast ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
-            Sistema de Captcha Accesible
-          </h1>
+          <div className="flex justify-between items-start mb-4">
+            <div className="flex-1">
+              <h1 className={`text-3xl sm:text-4xl lg:text-5xl font-bold text-center mb-4 ${getFontSizeClasses()} ${isHighContrast ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
+                Sistema de Captcha Accesible
+              </h1>
+            </div>
+            
+            {/* Botón para cambiar tipo de captcha */}
+            {hasSelectedCaptcha && (
+              <div className="flex flex-col items-end space-y-2">
+                <button
+                  onClick={() => setShowCaptchaModal(true)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    isHighContrast 
+                      ? 'bg-yellow-600 text-white hover:bg-yellow-700' 
+                      : 'bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-200 dark:hover:bg-blue-800'
+                  } focus:outline-none focus:ring-2 focus:ring-blue-300`}
+                  aria-label="Cambiar tipo de captcha"
+                >
+                  🔄 Cambiar Captcha
+                </button>
+                <span className={`text-xs ${isHighContrast ? 'text-gray-300' : 'text-gray-500 dark:text-gray-400'}`}>
+                  Actual: {selectedCaptchaType === 'audio' ? '🎵 Audio' : '👁️ Visual'}
+                </span>
+              </div>
+            )}
+          </div>
+          
           <p className={`text-lg sm:text-xl text-center max-w-2xl mx-auto ${getFontSizeClasses()} ${isHighContrast ? 'text-gray-200' : 'text-gray-600 dark:text-gray-300'}`}>
             Una alternativa inclusiva y accesible para la verificación humana, diseñada para todos los usuarios
           </p>
@@ -596,15 +668,33 @@ export default function Home() {
                 <p id="message-help" className={`mt-1 text-sm ${getFontSizeClasses()} ${isHighContrast ? 'text-gray-300' : 'text-gray-600 dark:text-gray-400'}`}>
                   Comparta cualquier comentario o consulta adicional
                 </p>
-              </div>
-
-              {/* Área del Captcha - Componente Real */}
+              </div>              {/* Área del Captcha - Componente Real */}
               <div>
                 <label className={`block text-sm font-semibold mb-2 ${getFontSizeClasses()} ${isHighContrast ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
                   Verificación de Seguridad
                   <span className="text-red-500 ml-1" aria-label="campo requerido">*</span>
                 </label>
-                <AccessibleCaptchaComponent 
+                
+                {/* Indicador del tipo de captcha seleccionado */}
+                {hasSelectedCaptcha && selectedCaptchaType && (
+                  <div className={`mb-3 p-2 rounded-lg text-sm ${
+                    selectedCaptchaType === 'audio' 
+                      ? 'bg-blue-50 text-blue-800 border border-blue-200 dark:bg-blue-900/20 dark:text-blue-200 dark:border-blue-700'
+                      : 'bg-green-50 text-green-800 border border-green-200 dark:bg-green-900/20 dark:text-green-200 dark:border-green-700'
+                  }`}>
+                    <span className="font-medium">
+                      {selectedCaptchaType === 'audio' ? '🎵 Captcha de Audio' : '👁️ Captcha Visual'} - 
+                    </span>
+                    <span className="ml-1">
+                      {selectedCaptchaType === 'audio' 
+                        ? 'Optimizado para personas con discapacidad visual'
+                        : 'Optimizado para personas con discapacidad auditiva'
+                      }
+                    </span>
+                  </div>
+                )}
+                
+                <AccessibleCaptchaComponent
                   onVerificationChange={setIsCaptchaVerified}
                   isHighContrast={isHighContrast}
                   fontSize={fontSize}
@@ -725,7 +815,12 @@ export default function Home() {
         <div className="mt-8">
           <HoverTestComponent />
         </div>
-      )}
+      )}      {/* Modal de Selección de Captcha (nuevo) */}
+      <CaptchaSelectionModal
+        isOpen={showCaptchaModal}
+        onClose={handleCloseModal}
+        onSelect={handleCaptchaSelection}
+      />
     </div>
   );
 }
