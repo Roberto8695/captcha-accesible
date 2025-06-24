@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import CaptchaSelectionModal from '../../components/CaptchaSelectionModal';
 import { playSuccessSound, playErrorSound } from '@/components/SoundFeedback';
 
 interface FormData {
@@ -57,13 +59,16 @@ interface SortingChallenge {
 type Challenge = PatternChallenge | SequenceChallenge | MatchingChallenge | SortingChallenge;
 
 export default function CaptchaSordosPage() {
+  const router = useRouter();
+  const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     name: "",
     email: "",
     message: "",
     phoneNumber: "",
     preferredContact: 'email'
-  });  const [currentCaptchaType, setCurrentCaptchaType] = useState<CaptchaType>('pattern');
+  });
+  const [currentCaptchaType, setCurrentCaptchaType] = useState<CaptchaType>('pattern');
   const [currentChallenge, setCurrentChallenge] = useState<Challenge | null>(null);
   const [isCaptchaVerified, setIsCaptchaVerified] = useState(false);
   const [userAnswer, setUserAnswer] = useState<UserAnswer>(null);
@@ -73,10 +78,8 @@ export default function CaptchaSordosPage() {
   const [isHighContrast, setIsHighContrast] = useState(false);
   const [fontSize, setFontSize] = useState<'small' | 'base' | 'large'>('base');
   const [showSuccess, setShowSuccess] = useState(false);
-
   // Referencias
   const formRef = useRef<HTMLFormElement>(null);
-
   // Generar desafío de patrones
   const generatePatternChallenge = (): PatternChallenge => {
     const challenges = [
@@ -85,21 +88,21 @@ export default function CaptchaSordosPage() {
         title: "Patrón Visual",
         description: "Seleccione cuál de las opciones continúa el patrón:",
         patterns: ["🔵", "🔴", "🔵", "🔴", "🔵", "❓"],
-        correctPattern: 1 // 🔴
+        correctPattern: 0 // 🔴 (index 0 in options array)
       },
       {
         type: 'pattern' as const,
         title: "Secuencia de Formas",
         description: "¿Qué forma sigue en la secuencia?",
         patterns: ["⭐", "⬛", "⭐", "⬛", "⭐", "❓"],
-        correctPattern: 1 // ⬛
+        correctPattern: 1 // ⬛ (index 1 in options array)
       },
       {
         type: 'pattern' as const,
         title: "Patrón de Números",
         description: "Complete la secuencia numérica:",
         patterns: ["1️⃣", "3️⃣", "5️⃣", "7️⃣", "❓"],
-        correctPattern: 2 // 9️⃣
+        correctPattern: 2 // 9️⃣ (index 2 in options array)
       }
     ];
 
@@ -325,6 +328,21 @@ export default function CaptchaSordosPage() {
     setCurrentCaptchaType(type);
     setIsCaptchaVerified(false);
     setAttempts(0);
+  };
+
+  // Handlers para el modal de selección
+  const handleCaptchaSelection = (type: 'audio' | 'visual') => {
+    localStorage.setItem('captchaPreference', type);
+    setShowModal(false);
+    
+    if (type === 'audio') {
+      router.push('/');
+    }
+    // Si selecciona 'visual', se queda en esta página
+  };
+
+  const handleSwitchCaptchaType = () => {
+    setShowModal(true);
   };
 
   // Manejar cambios en el formulario
@@ -648,6 +666,13 @@ export default function CaptchaSordosPage() {
                 <option value="base">📄 Texto Normal</option>
                 <option value="large">📰 Texto Grande</option>
               </select>
+              <button
+                onClick={handleSwitchCaptchaType}
+                className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                title="Cambiar a captcha de audio"
+              >
+                🔊 Cambiar de Captcha
+              </button>
             </div>
           </div>
         </div>
@@ -874,9 +899,15 @@ export default function CaptchaSordosPage() {
                 <li>• <strong>Tamaño ajustable:</strong> Texto y elementos escalables</li>
               </ul>
             </div>
-          </div>
-        </div>
+          </div>        </div>
       </div>
+      
+      {/* Modal de selección de captcha */}
+      <CaptchaSelectionModal
+        isOpen={showModal}
+        onSelect={handleCaptchaSelection}
+        onClose={() => setShowModal(false)}
+      />
     </div>
   );
 }
