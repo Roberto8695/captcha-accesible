@@ -57,100 +57,131 @@ const AccessibleCaptchaComponent: React.FC<CaptchaComponentProps> = ({
   
   const inputRef = useRef<HTMLInputElement>(null);  // Función para sintetizar voz con voz optimizada de Google
   const speakText = (text: string, isInitializing: boolean = false) => {
-    return new Promise<void>((resolve, reject) => {
+    return new Promise<void>((resolve) => {
       if (!voiceInitialized && !isInitializing) {
-        reject(new Error('Voz no inicializada. Haga clic en "Inicializar Voz" primero.'));
+        console.log('Voz no inicializada');
+        resolve();
         return;
       }
 
       if ('speechSynthesis' in window) {
         setIsPlaying(true);
         
-        // Solo cancelar si hay algo reproduciéndose y no es una interrupción intencional
+        // Cancelar síntesis anterior de forma más suave
         if (window.speechSynthesis.speaking) {
           window.speechSynthesis.cancel();
-          // Pequeña pausa para que la cancelación se complete
+          // Esperar más tiempo para que la cancelación se complete
           setTimeout(() => {
             startSpeaking();
-          }, 100);
+          }, 200);
         } else {
           startSpeaking();
         }
         
         function startSpeaking() {
-          const utterance = new SpeechSynthesisUtterance(text);
-          
-          // Buscar la mejor voz de Google en español
-          const voices = window.speechSynthesis.getVoices();
-          const googleVoices = voices.filter(voice => 
-            (voice.name.toLowerCase().includes('google') || voice.name.toLowerCase().includes('chrome')) &&
-            (voice.lang.startsWith('es-') || voice.lang === 'es')
-          );
-
-          // Prioridad: es-US > es-ES > otras variantes de español
-          const priorityOrder = ['es-US', 'es-ES', 'es-MX', 'es-AR', 'es'];
-          let bestVoice = null;
-          for (const lang of priorityOrder) {
-            bestVoice = googleVoices.find(voice => voice.lang === lang);
-            if (bestVoice) break;
-          }
-
-          if (!bestVoice) {
-            bestVoice = voices.find(voice => 
-              voice.lang.startsWith('es-') && voice.localService
-            ) || voices.find(voice => voice.lang.startsWith('es-'));
-          }
-
-          if (bestVoice) {
-            utterance.voice = bestVoice;
-            utterance.lang = bestVoice.lang;
-          } else {
-            utterance.lang = 'es-US';
-          }
-          
-          utterance.rate = 0.85;
-          utterance.pitch = 1.0;
-          utterance.volume = 1.0;
-          
-          utterance.onend = () => {
-            setIsPlaying(false);
-            resolve();
-          };
-          
-          utterance.onerror = (event) => {
-            setIsPlaying(false);
-            // No tratar 'interrupted' como error crítico
-            if (event.error === 'interrupted') {
-              console.log('Síntesis interrumpida (normal)');
-              resolve(); // Resolver en lugar de rechazar
-            } else {
-              reject(new Error(`Error en síntesis de voz: ${event.error}`));
-            }
-          };
-          
           try {
+            const utterance = new SpeechSynthesisUtterance(text);
+            
+            // Buscar la mejor voz de Google en español
+            const voices = window.speechSynthesis.getVoices();
+            const googleVoices = voices.filter(voice => 
+              (voice.name.toLowerCase().includes('google') || voice.name.toLowerCase().includes('chrome')) &&
+              (voice.lang.startsWith('es-') || voice.lang === 'es')
+            );
+
+            // Prioridad: es-US > es-ES > otras variantes de español
+            const priorityOrder = ['es-US', 'es-ES', 'es-MX', 'es-AR', 'es'];
+            let bestVoice = null;
+            for (const lang of priorityOrder) {
+              bestVoice = googleVoices.find(voice => voice.lang === lang);
+              if (bestVoice) break;
+            }
+
+            if (!bestVoice) {
+              bestVoice = voices.find(voice => 
+                voice.lang.startsWith('es-') && voice.localService
+              ) || voices.find(voice => voice.lang.startsWith('es-'));
+            }
+
+            if (bestVoice) {
+              utterance.voice = bestVoice;
+              utterance.lang = bestVoice.lang;
+            } else {
+              utterance.lang = 'es-US';
+            }
+            
+            utterance.rate = 0.85;
+            utterance.pitch = 1.0;
+            utterance.volume = 1.0;
+            
+            utterance.onend = () => {
+              setIsPlaying(false);
+              resolve();
+            };
+            
+            utterance.onerror = (event) => {
+              setIsPlaying(false);
+              // No tratar 'interrupted' o 'canceled' como errores críticos
+              if (event.error === 'interrupted' || event.error === 'canceled') {
+                console.log(`Síntesis ${event.error} (normal)`);
+                resolve(); // Resolver en lugar de rechazar
+              } else {
+                console.warn(`Error en síntesis de voz: ${event.error}`);
+                resolve(); // Resolver en lugar de rechazar para no romper el flujo
+              }
+            };
+            
+            // Intentar hablar
             window.speechSynthesis.speak(utterance);
+            
+            // Timeout de seguridad
+            setTimeout(() => {
+              if (window.speechSynthesis.speaking) {
+                window.speechSynthesis.cancel();
+              }
+              setIsPlaying(false);
+              resolve();
+            }, 10000); // 10 segundos máximo
+            
           } catch (error) {
             setIsPlaying(false);
-            reject(new Error(`Error al iniciar síntesis: ${error}`));
+            console.warn(`Error al iniciar síntesis: ${error}`);
+            resolve(); // Resolver en lugar de rechazar
           }
         }
       } else {
         setIsPlaying(false);
-        reject(new Error('Su navegador no soporta síntesis de voz.'));
+        console.warn('Su navegador no soporta síntesis de voz.');
+        resolve(); // Resolver en lugar de rechazar
       }
     });
-  };// Inicializar voz (requiere interacción del usuario)
+  };  // Inicializar voz (requiere interacción del usuario)
   const initializeVoice = async () => {
     if (voiceInitialized) return;
     
     setVoiceLoading(true);
+    setErrorMessage('');
+    
     try {
+      // Verificar soporte de síntesis de voz
+      if (!('speechSynthesis' in window)) {
+        throw new Error('Su navegador no soporta síntesis de voz');
+      }
+
+      // Cancelar cualquier síntesis en curso
+      if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+        // Esperar un poco para que se complete la cancelación
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+
       // Esperar a que las voces se carguen
       if (window.speechSynthesis.getVoices().length === 0) {
         await new Promise<void>((resolve) => {
+          let attempts = 0;
           const checkVoices = () => {
-            if (window.speechSynthesis.getVoices().length > 0) {
+            attempts++;
+            if (window.speechSynthesis.getVoices().length > 0 || attempts > 20) {
               resolve();
             } else {
               setTimeout(checkVoices, 100);
@@ -160,13 +191,24 @@ const AccessibleCaptchaComponent: React.FC<CaptchaComponentProps> = ({
         });
       }
       
-      // Hacer una prueba de voz para activar la API
-      await speakText('Voz inicializada correctamente', true);
-      setVoiceInitialized(true);
-      setErrorMessage('');
+      // Hacer una prueba de voz más simple para activar la API
+      try {
+        await speakText('Voz lista', true);
+        setVoiceInitialized(true);
+        setErrorMessage('');
+        console.log('Voz inicializada correctamente');
+      } catch (speechError) {
+        // Si la prueba de voz falla, aún marcamos como inicializada
+        // para permitir intentos posteriores
+        console.warn('Prueba de voz falló, pero marcando como inicializada:', speechError);
+        setVoiceInitialized(true);
+        setErrorMessage('');
+      }
+      
     } catch (error) {
       console.error('Error al inicializar voz:', error);
-      setErrorMessage('Error al inicializar la voz. Haga clic en "Inicializar Voz" para intentar de nuevo.');
+      setErrorMessage('Error al inicializar la voz. Su navegador puede no soportar esta función.');
+      // No marcar como inicializada en caso de error grave
     } finally {
       setVoiceLoading(false);
     }
@@ -176,30 +218,75 @@ const AccessibleCaptchaComponent: React.FC<CaptchaComponentProps> = ({
   const generateAudioChallenge = (): AudioChallenge => {
     const challenges = [
       {
-        question: "Escuche la secuencia de sonidos y escriba cuántos 'clicks' escuchó",
-        answer: "3",
+        question: "¿Cuántos días tiene una semana?",
+        answer: "7",
         hints: [
-          "Hay entre 1 y 5 clicks",
-          "Escuche atentamente los sonidos separados",
-          "Son exactamente 3 clicks"
+          "Piense en los días laborales más el fin de semana",
+          "De lunes a domingo",
+          "Son exactamente 7 días"
         ]
       },
       {
-        question: "¿Cuál es la palabra que rima con 'casa'?",
-        answer: "masa",
+        question: "¿Cuál es el color que se forma mezclando azul y amarillo?",
+        answer: "verde",
         hints: [
-          "Es algo que se usa para cocinar",
-          "Termina en 'asa'", 
-          "Se usa para hacer pan"
+          "Es el color de la hierba",
+          "Es un color primario en la naturaleza",
+          "Rima con 'sede'"
         ]
       },
       {
-        question: "Complete la frase: 'El agua está...'",
-        answer: "húmeda",
+        question: "¿Cuántas patas tiene un gato?",
+        answer: "4",
         hints: [
-          "Es una característica del agua",
-          "Lo opuesto a seco",
-          "Describe la sensación del agua"
+          "Los gatos son mamíferos de cuatro patas",
+          "Es menos de 5 pero más de 3",
+          "El mismo número que un perro"
+        ]
+      },
+      {
+        question: "¿En qué estación del año caen las hojas?",
+        answer: "otoño",
+        hints: [
+          "Es después del verano",
+          "Los árboles se preparan para el invierno",
+          "También se llama 'autumn' en inglés"
+        ]
+      },
+      {
+        question: "¿Qué animal hace 'miau'?",
+        answer: "gato",
+        hints: [
+          "Es una mascota doméstica",
+          "Le gusta la leche",
+          "Caza ratones"
+        ]
+      },
+      {
+        question: "¿Cuántos minutos tiene una hora?",
+        answer: "60",
+        hints: [
+          "Es un número redondo",
+          "Sesenta minutos",
+          "La mitad de 120"
+        ]
+      },
+      {
+        question: "¿Qué fruta es roja y se asocia con los maestros?",
+        answer: "manzana",
+        hints: [
+          "Es una fruta muy común",
+          "Puede ser roja, verde o amarilla",
+          "Se dice que 'una al día mantiene alejado al doctor'"
+        ]
+      },
+      {
+        question: "¿Cuál es el primer día de la semana?",
+        answer: "lunes",
+        hints: [
+          "Es después del domingo",
+          "Muchas personas lo consideran el inicio de la semana laboral",
+          "En inglés es 'Monday'"
         ]
       }
     ];
@@ -211,22 +298,34 @@ const AccessibleCaptchaComponent: React.FC<CaptchaComponentProps> = ({
   const generateSequenceChallenge = (): SequenceChallenge => {
     const sequences = [
       {
-        description: "Complete la secuencia numérica: 2, 4, 6, 8, ?",
-        sequence: ["2", "4", "6", "8"],
+        description: "Complete la secuencia numérica simple: 1, 2, 3, 4, ?",
+        sequence: ["1", "2", "3", "4"],
         missing: 4,
-        answer: "10"
+        answer: "5"
       },
       {
-        description: "Complete la secuencia de días: Lunes, Martes, Miércoles, ?",
-        sequence: ["Lunes", "Martes", "Miércoles"],
+        description: "Complete los días de la semana: Lunes, Martes, ?",
+        sequence: ["Lunes", "Martes"],
+        missing: 2,
+        answer: "miércoles"
+      },
+      {
+        description: "Complete la secuencia: 10, 20, 30, ?",
+        sequence: ["10", "20", "30"],
         missing: 3,
-        answer: "jueves"
+        answer: "40"
       },
       {
-        description: "Complete la secuencia: A, C, E, G, ?",
-        sequence: ["A", "C", "E", "G"],
-        missing: 4,
-        answer: "I"
+        description: "Complete las estaciones: Primavera, Verano, Otoño, ?",
+        sequence: ["Primavera", "Verano", "Otoño"],
+        missing: 3,
+        answer: "invierno"
+      },
+      {
+        description: "Complete la secuencia de colores del semáforo: Rojo, Amarillo, ?",
+        sequence: ["Rojo", "Amarillo"],
+        missing: 2,
+        answer: "verde"
       }
     ];
     
@@ -237,19 +336,29 @@ const AccessibleCaptchaComponent: React.FC<CaptchaComponentProps> = ({
   const generatePatternChallenge = (): PatternChallenge => {
     const patterns = [
       {
-        description: "¿Qué tienen en común: Rosa, Tulipán, Margarita?",
-        pattern: "Son todas flores",
-        answer: "flores"
+        description: "¿Qué tienen en común: Manzana, Naranja, Plátano?",
+        pattern: "Son todas frutas",
+        answer: "frutas"
       },
       {
-        description: "¿Qué tienen en común: Enero, Marzo, Mayo?",
-        pattern: "Son meses del año",
-        answer: "meses"
+        description: "¿Qué tienen en común: Coche, Bicicleta, Autobús?",
+        pattern: "Son medios de transporte",
+        answer: "transporte"
       },
       {
-        description: "¿Qué tienen en común: Perro, Gato, Caballo?",
-        pattern: "Son animales",
-        answer: "animales"
+        description: "¿Qué tienen en común: Mesa, Silla, Sofá?",
+        pattern: "Son muebles",
+        answer: "muebles"
+      },
+      {
+        description: "¿Qué tienen en común: Rojo, Azul, Verde?",
+        pattern: "Son colores",
+        answer: "colores"
+      },
+      {
+        description: "¿Qué tienen en común: Lunes, Martes, Miércoles?",
+        pattern: "Son días de la semana",
+        answer: "días"
       }
     ];
     
@@ -259,21 +368,39 @@ const AccessibleCaptchaComponent: React.FC<CaptchaComponentProps> = ({
   const generateStoryChallenge = (): StoryChallenge => {
     const stories = [
       {
-        story: "María salió de casa temprano en la mañana. El cielo estaba gris y se veían nubes oscuras. Antes de salir, tomó algo del armario cerca de la puerta.",
-        question: "¿Qué es lo más probable que haya tomado María?",
-        options: ["Un paraguas", "Unas gafas de sol", "Una pelota", "Un libro"],
+        story: "Juan tiene sed y va a la cocina.",
+        question: "¿Qué es lo más probable que busque Juan?",
+        options: ["Agua", "Un libro", "Sus llaves", "Una pelota"],
         correctIndex: 0
       },
       {
-        story: "Carlos escuchó un ruido extraño en la cocina. Fue a investigar y vio que había agua en el suelo. Miró hacia arriba y vio gotas cayendo.",
-        question: "¿Cuál es la causa más probable del problema?",
-        options: ["Una ventana abierta", "Un grifo goteando", "Un vaso roto", "El gato mojado"],
+        story: "María escucha que llueve fuerte afuera y va a salir.",
+        question: "¿Qué debería llevar María?",
+        options: ["Gafas de sol", "Paraguas", "Shorts", "Sandalias"],
         correctIndex: 1
       },
       {
-        story: "Ana estaba preparando la cena cuando se fue la luz. Necesitaba continuar cocinando, así que fue al cajón y sacó algo.",
-        question: "¿Qué es lo más útil que pudo haber sacado Ana?",
-        options: ["Una cuchara", "Una linterna", "Un plato", "Un mantel"],
+        story: "Pedro está en la biblioteca y quiere leer.",
+        question: "¿Qué necesita Pedro?",
+        options: ["Una pelota", "Un libro", "Comida", "Música"],
+        correctIndex: 1
+      },
+      {
+        story: "Ana tiene hambre y va a la cocina.",
+        question: "¿Qué busca Ana?",
+        options: ["Un teléfono", "Ropa", "Comida", "Un juguete"],
+        correctIndex: 2
+      },
+      {
+        story: "Luis quiere enviar una carta y va a la oficina de correos.",
+        question: "¿Qué necesita comprar Luis?",
+        options: ["Un sello", "Pan", "Leche", "Flores"],
+        correctIndex: 0
+      },
+      {
+        story: "Carmen está muy cansada después del trabajo.",
+        question: "¿Qué es lo más probable que quiera hacer Carmen?",
+        options: ["Correr", "Dormir", "Estudiar", "Cocinar"],
         correctIndex: 1
       }
     ];

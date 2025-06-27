@@ -418,9 +418,25 @@ export default function CaptchaSordosPage() {
   // Clases CSS dinámicas
   const getFontSizeClasses = () => {
     switch (fontSize) {
-      case 'small': return 'text-sm';
-      case 'large': return 'text-lg';
-      default: return 'text-base';
+      case 'small': return 'text-xs sm:text-sm';
+      case 'large': return 'text-lg sm:text-xl lg:text-2xl';
+      default: return 'text-sm sm:text-base lg:text-lg';
+    }
+  };
+
+  const getTitleSizeClasses = () => {
+    switch (fontSize) {
+      case 'small': return 'text-2xl sm:text-3xl';
+      case 'large': return 'text-4xl sm:text-5xl lg:text-6xl';
+      default: return 'text-3xl sm:text-4xl lg:text-5xl';
+    }
+  };
+
+  const getSubtitleSizeClasses = () => {
+    switch (fontSize) {
+      case 'small': return 'text-base sm:text-lg';
+      case 'large': return 'text-xl sm:text-2xl lg:text-3xl';
+      default: return 'text-lg sm:text-xl lg:text-2xl';
     }
   };
 
@@ -462,8 +478,10 @@ export default function CaptchaSordosPage() {
               onClick={() => setUserAnswer(index)}
               className={`w-16 h-16 flex items-center justify-center text-3xl rounded-lg border-2 transition-all ${
                 userAnswer === index
-                  ? 'border-blue-500 bg-blue-100 dark:bg-blue-900 scale-110'
-                  : 'border-gray-300 bg-white dark:bg-gray-800 hover:border-blue-300 hover:scale-105'
+                  ? 'border-blue-500 bg-blue-100 dark:bg-blue-900 scale-110 text-blue-800 dark:text-blue-200'
+                  : isHighContrast
+                    ? 'border-white bg-black text-white hover:border-yellow-400 hover:bg-gray-900 hover:scale-105'
+                    : 'border-gray-300 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-gray-700 hover:scale-105'
               }`}
             >
               {option}
@@ -502,8 +520,10 @@ export default function CaptchaSordosPage() {
               onClick={() => setUserAnswer(index)}
               className={`p-3 rounded-lg border-2 transition-all text-center ${
                 userAnswer === index
-                  ? 'border-blue-500 bg-blue-100 dark:bg-blue-900'
-                  : 'border-gray-300 bg-white dark:bg-gray-800 hover:border-blue-300'
+                  ? 'border-blue-500 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
+                  : isHighContrast
+                    ? 'border-white bg-black text-white hover:border-yellow-400 hover:bg-gray-900'
+                    : 'border-gray-300 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-gray-700'
               }`}
             >
               {option}
@@ -534,8 +554,10 @@ export default function CaptchaSordosPage() {
               onClick={() => toggleSelection(item.id)}
               className={`w-16 h-16 flex items-center justify-center text-3xl rounded-lg border-2 transition-all ${
                 Array.isArray(userAnswer) && userAnswer.includes(item.id)
-                  ? 'border-green-500 bg-green-100 dark:bg-green-900 scale-110'
-                  : 'border-gray-300 bg-white dark:bg-gray-800 hover:border-green-300 hover:scale-105'
+                  ? 'border-green-500 bg-green-100 dark:bg-green-900 scale-110 text-green-800 dark:text-green-200'
+                  : isHighContrast
+                    ? 'border-white bg-black text-white hover:border-yellow-400 hover:bg-gray-900 hover:scale-105'
+                    : 'border-gray-300 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:border-green-400 hover:bg-green-50 dark:hover:bg-gray-700 hover:scale-105'
               }`}
             >
               {item.emoji}
@@ -575,7 +597,11 @@ export default function CaptchaSordosPage() {
                   {index > 0 && (
                     <button
                       onClick={() => moveItem(index, index - 1)}
-                      className="w-6 h-6 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
+                      className={`w-6 h-6 rounded text-xs transition-colors ${
+                        isHighContrast 
+                          ? 'bg-yellow-600 text-black hover:bg-yellow-500' 
+                          : 'bg-blue-500 text-white hover:bg-blue-600'
+                      }`}
                     >
                       ←
                     </button>
@@ -583,7 +609,11 @@ export default function CaptchaSordosPage() {
                   {Array.isArray(userAnswer) && index < userAnswer.length - 1 && (
                     <button
                       onClick={() => moveItem(index, index + 1)}
-                      className="w-6 h-6 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
+                      className={`w-6 h-6 rounded text-xs transition-colors ${
+                        isHighContrast 
+                          ? 'bg-yellow-600 text-black hover:bg-yellow-500' 
+                          : 'bg-blue-500 text-white hover:bg-blue-600'
+                      }`}
                     >
                       →
                     </button>
@@ -615,7 +645,11 @@ export default function CaptchaSordosPage() {
             </p>
             <button
               onClick={() => setShowSuccess(false)}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              className={`px-6 py-2 rounded-lg transition-colors ${
+                isHighContrast 
+                  ? 'bg-yellow-600 text-black hover:bg-yellow-500' 
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
             >
               Enviar Otro Mensaje
             </button>
@@ -630,12 +664,12 @@ export default function CaptchaSordosPage() {
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className={`text-4xl font-bold mb-4 ${getFontSizeClasses()} ${
+          <h1 className={`font-bold mb-4 ${getTitleSizeClasses()} ${
             isHighContrast ? 'text-white' : 'text-gray-900 dark:text-white'
           }`}>
             🤟 Formulario Accesible para Personas Sordas
           </h1>
-          <p className={`text-lg ${getFontSizeClasses()} ${
+          <p className={`${getSubtitleSizeClasses()} ${
             isHighContrast ? 'text-gray-300' : 'text-gray-600 dark:text-gray-400'
           }`}>
             Captcha completamente visual - Sin audio requerido
@@ -657,10 +691,14 @@ export default function CaptchaSordosPage() {
               >
                 {isHighContrast ? '🌞' : '🌙'} Alto Contraste
               </button>
-                <select
+              <select
                 value={fontSize}
                 onChange={(e) => setFontSize(e.target.value as 'small' | 'base' | 'large')}
-                className="px-4 py-2 rounded-lg border border-gray-300 bg-white dark:bg-gray-700"
+                className={`px-4 py-2 rounded-lg border transition-colors ${getFontSizeClasses()} ${
+                  isHighContrast 
+                    ? 'border-white bg-black text-white' 
+                    : 'border-gray-300 bg-white dark:bg-gray-700 text-gray-800 dark:text-white'
+                }`}
               >
                 <option value="small">📝 Texto Pequeño</option>
                 <option value="base">📄 Texto Normal</option>
@@ -668,7 +706,11 @@ export default function CaptchaSordosPage() {
               </select>
               <button
                 onClick={handleSwitchCaptchaType}
-                className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                className={`px-4 py-2 rounded-lg transition-colors ${
+                  isHighContrast 
+                    ? 'bg-yellow-600 text-black hover:bg-yellow-500' 
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
                 title="Cambiar a captcha de audio"
               >
                 🔊 Cambiar de Captcha
@@ -680,7 +722,7 @@ export default function CaptchaSordosPage() {
         <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-8">
           {/* Formulario */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-6">
-            <h2 className={`text-2xl font-bold mb-6 ${getFontSizeClasses()}`}>
+            <h2 className={`font-bold mb-6 ${getSubtitleSizeClasses()}`}>
               📝 Información de Contacto
             </h2>
             
@@ -738,20 +780,7 @@ export default function CaptchaSordosPage() {
                 />
               </div>
 
-              <div>
-                <label className={`block text-sm font-semibold mb-2 ${getFontSizeClasses()}`}>
-                  🗨️ Método de Contacto Preferido
-                </label>
-                <select
-                  value={formData.preferredContact}
-                  onChange={(e) => handleInputChange('preferredContact', e.target.value)}
-                  className={`w-full px-4 py-3 border-2 rounded-lg transition-colors ${getFontSizeClasses()} border-gray-300 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600`}
-                >
-                  <option value="email">📧 Email</option>
-                  <option value="video">📹 Videollamada</option>
-                  <option value="text">💬 Mensaje de Texto</option>
-                </select>
-              </div>
+              
 
               <div>
                 <label className={`block text-sm font-semibold mb-2 ${getFontSizeClasses()}`}>
@@ -778,8 +807,12 @@ export default function CaptchaSordosPage() {
                 disabled={!isCaptchaVerified || isSubmitting}
                 className={`w-full py-3 px-6 rounded-lg font-semibold transition-all ${getFontSizeClasses()} ${
                   isCaptchaVerified && !isSubmitting
-                    ? 'bg-green-600 text-white hover:bg-green-700'
-                    : 'bg-gray-400 text-white cursor-not-allowed'
+                    ? isHighContrast
+                      ? 'bg-green-800 text-green-200 hover:bg-green-700'
+                      : 'bg-green-600 text-white hover:bg-green-700'
+                    : isHighContrast
+                      ? 'bg-gray-700 text-gray-300 cursor-not-allowed'
+                      : 'bg-gray-400 text-white cursor-not-allowed'
                 }`}
               >
                 {isSubmitting ? (
@@ -802,7 +835,7 @@ export default function CaptchaSordosPage() {
 
           {/* Captcha Visual */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-6">
-            <h2 className={`text-2xl font-bold mb-6 ${getFontSizeClasses()}`}>
+            <h2 className={`font-bold mb-6 ${getSubtitleSizeClasses()}`}>
               👁️ Verificación Visual
             </h2>
 
@@ -861,8 +894,12 @@ export default function CaptchaSordosPage() {
                 disabled={userAnswer === null || isCaptchaVerified}
                 className={`flex-1 py-3 px-6 rounded-lg font-semibold transition-all ${
                   isCaptchaVerified
-                    ? 'bg-green-600 text-white cursor-not-allowed'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                    ? isHighContrast
+                      ? 'bg-green-800 text-green-200 cursor-not-allowed'
+                      : 'bg-green-600 text-white cursor-not-allowed'
+                    : isHighContrast
+                      ? 'bg-yellow-600 text-black hover:bg-yellow-500'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
                 } disabled:opacity-50`}
               >
                 {isCaptchaVerified ? '✅ Verificado' : '🔍 Verificar'}
@@ -871,7 +908,11 @@ export default function CaptchaSordosPage() {
               <button
                 onClick={generateNewChallenge}
                 disabled={isCaptchaVerified}
-                className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50"
+                className={`px-6 py-3 rounded-lg transition-colors disabled:opacity-50 ${
+                  isHighContrast 
+                    ? 'bg-gray-800 text-gray-200 hover:bg-gray-700' 
+                    : 'bg-gray-600 text-white hover:bg-gray-700'
+                }`}
               >
                 🔄 Nuevo
               </button>

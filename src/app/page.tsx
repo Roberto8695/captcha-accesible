@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
 import AccessibleCaptchaComponent from "@/components/AccessibleCaptchaComponent";
 import { AccessibilityPanel } from "@/components/AccessibilityPanel";
-import { SoundFeedback } from "@/components/SoundFeedback";
+import { SoundFeedback, playSuccessSound, playErrorSound } from "@/components/SoundFeedback";
 import { HoverTestComponent } from "@/components/HoverTestComponent";
 import CaptchaSelectionModal from "@/components/CaptchaSelectionModal";
 import { useAccessibility } from "@/hooks/useAccessibility";
@@ -28,6 +28,9 @@ export default function Home() {
   const [showCaptchaModal, setShowCaptchaModal] = useState(false);
   const [hasSelectedCaptcha, setHasSelectedCaptcha] = useState(false);
   const [selectedCaptchaType, setSelectedCaptchaType] = useState<'audio' | 'visual' | null>(null);
+  
+  // Estado para el modal de éxito
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   
   const formRef = useRef<HTMLFormElement>(null);
   const firstErrorRef = useRef<HTMLInputElement>(null);
@@ -95,14 +98,29 @@ export default function Home() {
   // Efecto para cerrar el panel flotante con Escape
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && isFloatingPanelOpen) {
-        setIsFloatingPanelOpen(false);
+      if (event.key === 'Escape') {
+        if (isFloatingPanelOpen) {
+          setIsFloatingPanelOpen(false);
+        } else if (showSuccessModal) {
+          setShowSuccessModal(false);
+        }
       }
     };
 
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [isFloatingPanelOpen]);
+  }, [isFloatingPanelOpen, showSuccessModal]);
+
+  // Efecto para cerrar automáticamente el modal de éxito
+  useEffect(() => {
+    if (showSuccessModal) {
+      const timer = setTimeout(() => {
+        setShowSuccessModal(false);
+      }, 10000); // Cerrar después de 10 segundos
+
+      return () => clearTimeout(timer);
+    }
+  }, [showSuccessModal]);
 
   // Mostrar modal de selección al cargar la página
   useEffect(() => {
@@ -205,12 +223,18 @@ export default function Home() {
     e.preventDefault();
     
     if (!validateForm()) {
+      if (soundEnabled) {
+        playErrorSound();
+      }
       announceErrors();
       return;
     }
 
     // Verificar que el captcha esté completado
     if (!isCaptchaVerified) {
+      if (soundEnabled) {
+        playErrorSound();
+      }
       setErrors({ captcha: "Por favor complete la verificación captcha" });
       const announceElement = document.createElement('div');
       announceElement.setAttribute('aria-live', 'assertive');
@@ -238,7 +262,15 @@ export default function Home() {
       setIsSubmitting(false);
       document.body.removeChild(announceElement);
       
-      // Anunciar éxito
+      // Reproducir sonido de éxito
+      if (soundEnabled) {
+        playSuccessSound();
+      }
+      
+      // Mostrar modal de éxito
+      setShowSuccessModal(true);
+      
+      // Anunciar éxito para lectores de pantalla
       const successElement = document.createElement('div');
       successElement.setAttribute('aria-live', 'assertive');
       successElement.className = 'sr-only';
@@ -315,6 +347,34 @@ export default function Home() {
           clip: rect(0, 0, 0, 0);
           white-space: nowrap;
           border: 0;
+        }
+        
+        .animate-fadeIn {
+          animation: fadeIn 0.3s ease-out;
+        }
+        
+        .animate-slideIn {
+          animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+        
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translateY(-20px) scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
         }
       `}</style>
 
@@ -831,6 +891,82 @@ export default function Home() {
         onClose={handleCloseModal}
         onSelect={handleCaptchaSelection}
       />
+
+      {/* Modal de Éxito */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <div className={`max-w-md w-full rounded-lg p-6 shadow-xl transform transition-all duration-300 animate-slideIn ${
+            isHighContrast 
+              ? 'bg-gray-900 border-2 border-white text-white' 
+              : 'bg-white text-gray-900'
+          }`}>
+            <div className="text-center">
+              {/* Icono de éxito animado */}
+              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4 animate-pulse">
+                <svg 
+                  className="h-8 w-8 text-green-600 animate-bounce" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={3} 
+                    d="M5 13l4 4L19 7" 
+                  />
+                </svg>
+              </div>
+              
+              {/* Título */}
+              <h3 className={`text-xl font-bold mb-3 text-green-600 ${getFontSizeClasses()}`}>
+                ¡Formulario Enviado Exitosamente!
+              </h3>
+              
+              {/* Mensaje */}
+              <p className={`text-sm mb-6 ${getFontSizeClasses()}`}>
+                Su mensaje ha sido enviado correctamente. Nos pondremos en contacto con usted pronto.
+              </p>
+              
+              {/* Botones */}
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={() => setShowSuccessModal(false)}
+                  className={`px-6 py-2 rounded-lg font-medium transition-all duration-200 ${
+                    isHighContrast
+                      ? 'bg-green-600 text-white hover:bg-green-700 focus:ring-2 focus:ring-green-500'
+                      : 'bg-green-600 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50'
+                  }`}
+                  autoFocus
+                  aria-label="Cerrar modal de confirmación"
+                >
+                  ✓ Entendido
+                </button>
+                
+                <button
+                  onClick={() => {
+                    setShowSuccessModal(false);
+                    // Enfocar el primer campo para enviar otro mensaje
+                    setTimeout(() => {
+                      const nameInput = document.getElementById('name');
+                      if (nameInput) nameInput.focus();
+                    }, 100);
+                  }}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                    isHighContrast
+                      ? 'bg-gray-600 text-white hover:bg-gray-700 focus:ring-2 focus:ring-gray-500'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50'
+                  }`}
+                  aria-label="Enviar otro mensaje"
+                >
+                  📝 Enviar otro mensaje
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
