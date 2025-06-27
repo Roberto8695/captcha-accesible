@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import Image from "next/image";
 import AccessibleCaptchaComponent from "@/components/AccessibleCaptchaComponent";
 import { AccessibilityPanel } from "@/components/AccessibilityPanel";
 import { SoundFeedback } from "@/components/SoundFeedback";
@@ -517,9 +518,18 @@ export default function Home() {
         <div className="max-w-4xl mx-auto">
           <div className="flex justify-between items-start mb-4">
             <div className="flex-1">
-              <h1 className={`text-3xl sm:text-4xl lg:text-5xl font-bold text-center mb-4 ${getFontSizeClasses()} ${isHighContrast ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
-                Sistema de Captcha Accesible
-              </h1>
+              <div className="flex items-center justify-center gap-4 mb-4">
+                <Image 
+                  src="/logo-captcha.png" 
+                  alt="Logo Captcha Accesible" 
+                  width={96}
+                  height={96}
+                  className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 object-contain"
+                />
+                <h1 className={`text-3xl sm:text-4xl lg:text-5xl font-bold ${getFontSizeClasses()} ${isHighContrast ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
+                  Sistema de Captcha Accesible
+                </h1>
+              </div>
             </div>
             
             {/* Botón para cambiar tipo de captcha */}
